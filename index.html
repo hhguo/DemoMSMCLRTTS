@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Demo Page: Towards High-Quality Neural TTS for Low-Resource Languages by Learning Compact Representations</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <script src="jquery-3.5.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div id="text1">Towards High-Quality Neural TTS for Low-Resource Languages by Learning Compact Representations
+        </div>
+        <div id="intro">
+            <br>
+            <p>
+                Haohan Guo, Fenglong Xie, Hui Lu, Xixin Wu, Helen Meng
+            </p>
+            <p>Submitted</i>
+            </p>
+            <!-- <p>
+            [<a href="https://arxiv.org/abs/2104.00355">Paper</a>]
+        </p> -->
+        </div>
+    </div>
+    <div class="content-container">
+        <p>
+            This paper proposes a compact speech representation based approach to enhance low-resource TTS. A Multi-Stage Multi-Codebook (MSMC) VQ-GAN is trained to learn the compact representation MSMCR from waveforms, and decode it back. An acoustic model is trained to map the text to this representation, whose high compactness reduces the training data requirement. Moreover, to convert MSMCRs to high-fidelity waveforms, we also optimize the training strategy of MSMC-VQ-GAN with a data-driven method. It first selects audio from other languages using speaker similarity metric to augment the training set, then applies transfer learning to enhance the training quality further. In experiments, the proposed TTS system significantly outperforms baseline systems in standard and low-resource scenarios. The proposed training strategy effectively improves waveform generation quality, enhancing low-resource TTS, especially in a highly low-resource situation with only 15-minute paired training data.
+        </p>
+        <br />
+    </div>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+    <div class="content-container">
+        <div class="content-title">Samples</div>
+        <div id='descript'>
+        </div>
+        <div id='legend'>
+            <ul style="list-style-type:circle">
+            </ul>
+        </div>
+        <div class="option-div" id="tests-div">
+            <label for="tests">Choose test:</label>
+            <select id="tests" onchange=record(this)>
+                <option value="standard">Standard TTS</option>
+                <option value="lr">Low-Resource TTS</option>
+                <option value="elr">Extremely Low-Resource TTS</option>
+            </select>
+        </div>
+        <div id="result-div"></div>
+    </div>
+
+    <div id="loading-status">Loading......</div>
+
+    <script>
+        var mode = 0;
+        var audio;
+        var filename = null;
+        function play(file_name) {
+            if (filename !== file_name) {
+                if (audio) {
+                    audio.pause();
+                }
+
+                audio = new Audio(file_name);
+                filename = file_name;
+                audio.play();
+            } else {
+                if (audio.paused) {
+                    audio = new Audio(file_name);
+                    filename = file_name;
+                    audio.play();
+                } else {
+                    audio.pause();
+                }
+            }
+        }
+        function switchMode() {
+            if (document.getElementById("myonoffswitch").checked) {
+                mode = 0;
+            }
+            else {
+                mode = 1;
+            }
+        }
+    </script>
+
+    <script>
+        /* Highlights the navigation bar button corresponding to page
+        to indicate which page a user is currently viewing.
+        */
+        var dataset = "csmsc";
+        var tasks = "tts";
+        var tests = 'standard';
+
+        var tests_to_methods = {
+            "standard": ['recordings', 'fs', 'vits', 'msmc'],
+            "lr": ['fs', 'vits', 'msmc', 'msmc_s'],
+            "elr": ['msmc', 'msmc_s'],
+        };
+
+        var method_to_hdr = {
+            "recordings": "Original Recordings",
+            "fs": "FastSpeech",
+            "vits": "VITS",
+            "msmc": "MSMC-TTS",
+            "msmc_s": "MSMC-TTS w/ proposed training strategy",
+        };
+
+        var id_list = [
+            ["000068", "图为凯姆博伊“斜线”冲刺。"],
+            ["000509", "陈奕迅透露太太徐濠萦因忙于跑步，故未能出席捧场。"],
+            ["000528", "约翰逊与奥巴马交情匪浅。"],
+            ["000940", "烟也戒了，酒业戒了，人生没啥乐趣了。"],
+            ["001993", "丈夫问：“我要有外遇了怎么办？"],
+            ["002053", "易感人群要尽量减少外出。"],
+            ["002094", "总体项目预计在二零二二年之前完成。"],
+            ["002166", "与本网连线时地面仍在颤动。"],
+            ["002296", "小家伙头部和屁股缠有绷带，两眼炯炯有神，正咂着奶瓶。"],
+            ["003121", "他决定利用业余时间宣传脆骨病，让大家关注脆弱的“瓷娃娃”。"],
+        ];
+
+        // var root = 'https://dl.fbaipublicfiles.com/speechbot/demo_samples';
+        var root = './audio';
+
+        function lock() {
+            $('#dataset').attr('disabled', 'disabled');
+            $('#tasks').attr('disabled', 'disabled');
+            $('#tests').attr('disabled', 'disabled');
+            $('#loading-status').show();
+        }
+        function unlock() {
+            $('#dataset').removeAttr('disabled');
+            $('#tasks').removeAttr('disabled');
+            $('#tests').removeAttr('disabled');
+            $('#loading-status').hide();
+        }
+
+        function preload(dataset, tasks, tests, push) {
+            lock();
+            $('#tasks').val(tasks);
+            $('#tests').val(tests);
+            $("#result-div").empty();
+            $("#result-div").append(createTable());
+            unlock();
+        }
+
+        preload(dataset, tasks, tests, true);
+
+        function createTable() {
+            var tableElem;
+            tableElem = document.createElement('table');
+            if (tasks === 'tts') {
+                return tts(tableElem);
+            }
+        }
+
+        function tts(tableElem) {
+            var headline, colElem, rowElem;
+
+            headline = document.createElement('tr');
+
+            colElem = document.createElement('td');
+            colElem.appendChild(document.createTextNode('ID'));
+            colElem.style.color = 'rgb(6, 150, 200)';
+            colElem.style.center = true;
+            headline.appendChild(colElem);
+
+            colElem = document.createElement('td');
+            headline.appendChild(colElem);
+
+            methods = tests_to_methods[tests];
+            console.log(tests);
+            console.log(tests_to_methods);
+            console.log(methods);
+            for (var ii = 0; ii < methods.length; ii++) {
+                colElem = document.createElement('td');
+                colElem.appendChild(document.createTextNode(method_to_hdr[methods[ii]]));
+                colElem.style.color = 'rgb(6, 150, 200)';
+                colElem.style.center = true;
+                colElem.style.whiteSpace = 'pre';
+                headline.appendChild(colElem);
+            }
+
+            tableElem.appendChild(headline);
+
+            var bg_color = 'white';
+            var txt_color = 'rgb(6, 150, 200)';
+
+            var file_list = id_list;
+            var N = file_list.length;
+            for (var j = 0; j < N; j++) {
+                rowElem = document.createElement('tr');
+                rowElem.style.backgroundColor = bg_color;
+
+                colElem = document.createElement('td');
+                colElem.appendChild(document.createTextNode(j.toString()));
+                colElem.style.color = txt_color;
+                colElem.style.center = true;
+                rowElem.appendChild(colElem);
+
+                colElem = document.createElement('td');
+                colElem.colSpan = (methods.length + 1).toString();
+                colElem.align = 'center';
+                colElem.appendChild(document.createTextNode(file_list[j][1]));
+                rowElem.appendChild(colElem);
+                
+                tableElem.appendChild(rowElem);
+
+                rowElem = document.createElement('tr');
+                colElem = document.createElement('td');
+                rowElem.appendChild(colElem);
+
+
+                colElem = document.createElement('td');
+                rowElem.appendChild(colElem);
+
+                for (var ii = 0; ii < methods.length; ii++) {
+                    colElem = document.createElement('td');
+                    audio_path = root + "/" + tasks + "/" + tests + "/"  + dataset + "/" + methods[ii] + "/" + file_list[j][0] + ".wav"
+                    audio_html = "<audio name=\"audio_" + (j * methods.length + ii).toString() + "\" controls=\"\"><source src=\"" + audio_path + "\" type=\"audio/mpeg\" /></audio>";
+                    colElem.innerHTML = audio_html;
+                    rowElem.appendChild(colElem);
+                }
+
+                tableElem.appendChild(rowElem);
+
+
+                rowElem = document.createElement('tr');
+                rowElem.style.backgroundColor = bg_color;
+
+                colElem = document.createElement('td');
+                colElem.appendChild(document.createTextNode("Transcript: "));
+                colElem.style.color = txt_color;
+                colElem.style.center = true;
+                rowElem.appendChild(colElem);
+
+                if ((j + 1) % 10 === 0) {
+                    flip = bg_color
+                    bg_color = txt_color;
+                    txt_color = flip;
+                }
+            }
+
+            return tableElem;
+        }
+
+        function fetch_result() {
+            $(window).ready(function () {
+                // dataset = $("#dataset").val();
+                
+                // tasks = $("#tasks").val();
+                // $("#tasks").empty();
+                // $("#tasks").append('<option value="resynthesis">Resynthesis</option>');
+                // $("#tasks").append('<option value="voice_conversion">Voice Conversion</option>');
+                // $("#tasks").append('<option value="codec">Codec (Unseen Speakers)</option>');
+                // $("#tasks").val(""tasks"");
+                
+                tests = $("#tests").val();
+                
+                $("#result-div").empty();
+                $("#result-div").append(createTable());
+                unlock();
+            });
+        }
+
+        function record(sel) {
+            lock();
+            fetch_result();
+        }
+
+        window.addEventListener('popstate', function (e) {
+            preload(e.state["dataset"], e.state["tasks"], e.state["tests"], false);
+        });
+    </script>
+
+    <div class="content-container">
+        Sample paged based on <a style="color:rgb(6, 150, 200)"
+            href="https://daps.cs.princeton.edu/projects/HiFi-GAN/index.php"> HiFi-GAN</a> page.
+    </div>
+</body>
+
+</html>
