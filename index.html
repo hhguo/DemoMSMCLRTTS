@@ -45,6 +45,7 @@
                 <option value="standard">Standard TTS</option>
                 <option value="lr">Low-Resource TTS</option>
                 <option value="elr">Extremely Low-Resource TTS</option>
+                <option value="ctts">Contonese TTS</option>
             </select>
         </div>
         <div id="result-div"></div>
@@ -97,11 +98,13 @@
             "standard": ['recordings', 'fs', 'vits', 'msmc'],
             "lr": ['fs', 'vits', 'msmc', 'msmc_s'],
             "elr": ['msmc', 'msmc_s'],
+            "ctts": ['recordings', 'fs', 'fs_e', 'msmc']
         };
 
         var method_to_hdr = {
             "recordings": "Original Recordings",
             "fs": "FastSpeech",
+            "fs_e": "FastSpeech enhanced",
             "vits": "VITS",
             "msmc": "MSMC-TTS",
             "msmc_s": "MSMC-TTS w/ proposed training strategy",
@@ -119,6 +122,19 @@
             ["002296", "小家伙头部和屁股缠有绷带，两眼炯炯有神，正咂着奶瓶。(xiǎo jiā huǒ tóu bù hé pì gǔ chán yǒu bēng dài ，liǎng yǎn jiǒng jiǒng yǒu shén ，zhèng zā zhe nǎi píng 。)"],
             ["003121", "他决定利用业余时间宣传脆骨病，让大家关注脆弱的“瓷娃娃”。(tā jué dìng lì yòng yè yú shí jiān xuān chuán cuì gǔ bìng ，ràng dà jiā guān zhù cuì ruò de “cí wá wá ”。)"],
         ];
+
+        var id_list_c = [
+            ["F200286", "並處罰款人民幣五千元"],
+            ["F200431", "事後被送往醫院療傷"],
+            ["F200609", "他們變本加厲地玩這些把戲"],
+            ["F200757", "以過濾更多的尼古丁"],
+            ["F201419", "北約擴張，事在必行"],
+            ["F201606", "台灣鄧麗君文教基金會。"],
+            ["F201619", "各級政府一定要把關心和改善人民生活作為頭等大事。"],
+            ["F201764", "回家後好奇地問媽媽何解。"],
+            ["F201772", "因此為安全印刷賺上一筆。"],
+            ["F201849", "在日本及東南亞經濟疲態畢露下。"],
+        ]
 
         // var root = 'https://dl.fbaipublicfiles.com/speechbot/demo_samples';
         var root = './audio';
@@ -188,6 +204,12 @@
             var txt_color = 'rgb(6, 150, 200)';
 
             var file_list = id_list;
+            var test_dataset = dataset;
+            if (tests == 'ctts') {
+                file_list = id_list_c;
+                test_dataset = 'cusent';
+            }
+
             var N = file_list.length;
             for (var j = 0; j < N; j++) {
                 rowElem = document.createElement('tr');
@@ -217,7 +239,7 @@
 
                 for (var ii = 0; ii < methods.length; ii++) {
                     colElem = document.createElement('td');
-                    audio_path = root + "/" + tasks + "/" + tests + "/"  + dataset + "/" + methods[ii] + "/" + file_list[j][0] + ".wav"
+                    audio_path = root + "/" + tasks + "/" + tests + "/"  + test_dataset + "/" + methods[ii] + "/" + file_list[j][0] + ".wav"
                     audio_html = "<audio name=\"audio_" + (j * methods.length + ii).toString() + "\" controls=\"\"><source src=\"" + audio_path + "\" type=\"audio/mpeg\" /></audio>";
                     colElem.innerHTML = audio_html;
                     rowElem.appendChild(colElem);
